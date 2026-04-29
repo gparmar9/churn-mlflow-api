@@ -17,8 +17,9 @@ Construir un pipeline de Machine Learning end-to-end que prediga si un cliente v
 | Lenguaje | Python 3.12 |
 | Datos | pandas, numpy |
 | Modelado | scikit-learn |
-| Tracking | MLflow |
+| Tracking | MLflow (Docker) |
 | Visualizacion | matplotlib, seaborn |
+| Contenedores | Docker |
 | Entorno | venv |
 
 ---
@@ -30,37 +31,31 @@ Proyecto 01 - Churn ML Flow/
 │
 ├── data/
 │   ├── raw/                    # Dataset original sin modificar
-│   │   └── Telco-Churn.csv
-│   ├── processed/              # Datos limpios y transformados
+│   ├── processed/              # Splits de train/test generados por preprocessing.py
 │   └── features/               # Features finales para entrenamiento
 │
 ├── notebooks/
-│   ├── 01_eda.ipynb            # Analisis exploratorio de datos
-│   ├── 02_preprocessing.ipynb  # Limpieza y feature engineering
-│   └── 03_modeling.ipynb       # Experimentacion con modelos
+│   ├── 01_eda.ipynb            # Analisis exploratorio de datos (completado)
+│   └── 02_modeling.ipynb       # Experimentacion con modelos
 │
 ├── src/
-│   ├── data/
-│   │   ├── load.py             # Carga y validacion del dataset
-│   │   └── preprocess.py       # Pipeline de preprocesamiento
-│   ├── features/
-│   │   └── build_features.py   # Construccion de features
-│   ├── models/
-│   │   ├── train.py            # Entrenamiento con MLflow tracking
-│   │   ├── evaluate.py         # Metricas y evaluacion
-│   │   └── predict.py          # Inferencia sobre nuevos datos
-│   └── utils/
-│       └── helpers.py
+│   ├── preprocessing.py        # Pipeline de carga, transformacion y split train/test
+│   └── train.py                # Entrenamiento con MLflow tracking (pendiente)
 │
 ├── mlruns/                     # Experimentos registrados por MLflow (autogenerado)
+├── mlartifacts/                # Artefactos de MLflow (autogenerado)
 │
-├── models/                     # Modelos serializados (.pkl / MLflow artifacts)
+├── models/                     # Modelos serializados
+│
+├── api/                        # API de inferencia FastAPI (pendiente)
+├── docker/                     # Dockerfiles adicionales
 │
 ├── docs/
 │   └── ml_roadmap.html         # Roadmap del proyecto
 │
 ├── tests/                      # Tests unitarios
 │
+├── docker-compose.yml          # Servicio MLflow
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -70,13 +65,13 @@ Proyecto 01 - Churn ML Flow/
 
 ## Fases del proyecto
 
-- [ ] **Fase 1 — EDA**: analisis exploratorio, distribucion de variables, tasa de churn
-- [ ] **Fase 2 — Preprocesamiento**: encoding, escalado, manejo de nulos, balanceo de clases
-- [ ] **Fase 3 — Feature Engineering**: seleccion y construccion de features relevantes
-- [ ] **Fase 4 — Modelado**: entrenamiento de modelos base (Logistic Regression, Random Forest, XGBoost)
-- [ ] **Fase 5 — MLflow Tracking**: registro de experimentos, parametros, metricas y artefactos
-- [ ] **Fase 6 — Evaluacion**: comparacion de modelos, curva ROC, matriz de confusion
-- [ ] **Fase 7 — Model Registry**: registro del mejor modelo en MLflow Model Registry
+- [x] **Fase 1 — EDA**: analisis exploratorio, distribucion de variables, tasa de churn
+- [x] **Fase 2 — Preprocesamiento**: encoding, escalado, manejo de nulos, split train/test
+- [ ] **Fase 3 — Modelado**: entrenamiento de modelos (Logistic Regression, Random Forest, XGBoost)
+- [ ] **Fase 4 — MLflow Tracking**: registro de experimentos, parametros, metricas y artefactos
+- [ ] **Fase 5 — Evaluacion**: comparacion de modelos, curva ROC, matriz de confusion
+- [ ] **Fase 6 — Model Registry**: registro del mejor modelo en MLflow Model Registry
+- [ ] **Fase 7 — API + Deploy**: endpoint FastAPI containerizado con Docker
 
 ---
 
@@ -89,27 +84,36 @@ Fuente: [IBM Sample Datasets / Kaggle — Telco Customer Churn](https://www.kagg
 > El archivo `data/raw/Telco-Churn.csv` no se versiona en este repositorio.
 > Descargarlo desde el enlace anterior y colocarlo en `data/raw/`.
 
-Variables clave:
-- Datos demograficos: genero, edad, dependientes
-- Servicios contratados: telefono, internet, streaming
-- Cuenta: tipo de contrato, metodo de pago, cargos mensuales
-- Target: `Churn` (Yes / No)
+Features seleccionadas tras el EDA:
+
+| Feature | Tipo | Motivo |
+|---|---|---|
+| `tenure` | numerica | Clientes nuevos churnan significativamente mas |
+| `monthlycharges` | numerica | Cargos altos correlacionan con mayor churn |
+| `contract` | categorica | Variable con mayor poder discriminativo del dataset |
+| `internetservice` | categorica | Fiber optic concentra tasa de churn muy alta |
+| `paymentmethod` | categorica | Electronic check destaca sobre el resto |
+| `onlinesecurity` | categorica | Sin seguridad online = mayor probabilidad de churn |
+| `techsupport` | categorica | Sin soporte tecnico = mayor probabilidad de churn |
+
+Target: `churn` (0 = No, 1 = Yes) — desbalanceo 74/26%, se compensa en el modelado.
 
 ---
 
 ## Inicio rapido
 
 ```bash
-# Clonar y crear entorno
+# Crear entorno e instalar dependencias
 python -m venv venv
 venv\Scripts\activate        # Windows
 source venv/bin/activate     # Linux/Mac
-
-# Instalar dependencias
 pip install -r requirements.txt
 
-# Lanzar MLflow UI
-mlflow ui
+# Ejecutar pipeline de preprocesamiento
+python src/preprocessing.py
+
+# Levantar MLflow con Docker
+docker-compose up
 # Abrir http://localhost:5000
 ```
 
